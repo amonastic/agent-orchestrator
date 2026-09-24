@@ -32,6 +32,7 @@ import (
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/opencode"
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/pi"
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/primeagent"
+	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/qoder"
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/qwen"
 	"github.com/aoagents/agent-orchestrator/backend/internal/adapters/agent/vibe"
 	"github.com/aoagents/agent-orchestrator/backend/internal/domain"
@@ -50,6 +51,7 @@ func Constructors() []adapters.Adapter {
 		grok.New(),
 		cursor.New(),
 		qwen.New(),
+		qoder.New(),
 		copilot.New(),
 		kimi.New(),
 		muse.New(),
