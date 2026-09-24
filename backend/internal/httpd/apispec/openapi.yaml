@@ -10110,6 +10110,7 @@ components:
           - crush
           - cursor
           - qwen
+          - qoder
           - copilot
           - goose
           - auggie
@@ -12864,6 +12865,7 @@ components:
           - crush
           - cursor
           - qwen
+          - qoder
           - copilot
           - goose
           - auggie

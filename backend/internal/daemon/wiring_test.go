@@ -167,6 +167,7 @@ func TestWiring_AgentResolverResolvesRealAdapters(t *testing.T) {
 		{domain.HarnessGrok, "grok"},
 		{domain.HarnessCursor, "cursor"},
 		{domain.HarnessQwen, "qwen"},
+		{domain.HarnessQoder, "qoder"},
 		{domain.HarnessCopilot, "copilot"},
 		{domain.HarnessKimi, "kimi"},
 		{domain.HarnessMuse, "muse"},
