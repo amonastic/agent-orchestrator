@@ -1726,6 +1726,9 @@ const (
 	sessionsHarnessCheckWithMuseQMKimchiPrimeAgent    = `CHECK (harness IN ('', 'claude-code', 'codex', 'aider', 'opencode', 'grok', 'droid', 'amp', 'agy', 'crush', 'cursor', 'qwen', 'copilot', 'goose', 'auggie', 'continue', 'devin', 'cline', 'kimi', 'muse', 'kiro', 'kilocode', 'vibe', 'pi', 'kimchi', 'prime-agent', 'autohand', 'qm', 'fake'))`
 	sessionsHarnessCheckWithMuseKimchiPrimeAgentOMP   = `CHECK (harness IN ('', 'claude-code', 'codex', 'aider', 'opencode', 'grok', 'droid', 'amp', 'agy', 'crush', 'cursor', 'qwen', 'copilot', 'goose', 'auggie', 'continue', 'devin', 'cline', 'kimi', 'muse', 'kiro', 'kilocode', 'vibe', 'pi', 'kimchi', 'prime-agent', 'autohand', 'omp', 'fake'))`
 	sessionsHarnessCheckWithMuseQMKimchiPrimeAgentOMP = `CHECK (harness IN ('', 'claude-code', 'codex', 'aider', 'opencode', 'grok', 'droid', 'amp', 'agy', 'crush', 'cursor', 'qwen', 'copilot', 'goose', 'auggie', 'continue', 'devin', 'cline', 'kimi', 'muse', 'kiro', 'kilocode', 'vibe', 'pi', 'kimchi', 'prime-agent', 'autohand', 'omp', 'qm', 'fake'))`
+
+	sessionsHarnessCheckWithMuseKimchiPrimeAgentOMPQoder   = `CHECK (harness IN ('', 'claude-code', 'codex', 'aider', 'opencode', 'grok', 'droid', 'amp', 'agy', 'crush', 'cursor', 'qwen', 'copilot', 'goose', 'auggie', 'continue', 'devin', 'cline', 'kimi', 'muse', 'kiro', 'kilocode', 'vibe', 'pi', 'kimchi', 'prime-agent', 'autohand', 'omp', 'qoder', 'fake'))`
+	sessionsHarnessCheckWithMuseQMKimchiPrimeAgentOMPQoder = `CHECK (harness IN ('', 'claude-code', 'codex', 'aider', 'opencode', 'grok', 'droid', 'amp', 'agy', 'crush', 'cursor', 'qwen', 'copilot', 'goose', 'auggie', 'continue', 'devin', 'cline', 'kimi', 'muse', 'kiro', 'kilocode', 'vibe', 'pi', 'kimchi', 'prime-agent', 'autohand', 'omp', 'qm', 'qoder', 'fake'))`
 )
 
 func reconcileHarnessConstraint(db *sql.DB) error {
@@ -1739,7 +1742,8 @@ func reconcileHarnessConstraint(db *sql.DB) error {
 	needsKimchi := !strings.Contains(schema, "'kimchi'")
 	needsPrimeAgent := !strings.Contains(schema, "'prime-agent'")
 	needsOMP := !strings.Contains(schema, "'omp'")
-	if !needsMuse && !needsKimchi && !needsPrimeAgent && !needsOMP {
+	needsQoder := !strings.Contains(schema, "'qoder'")
+	if !needsMuse && !needsKimchi && !needsPrimeAgent && !needsOMP && !needsQoder {
 		return nil
 	}
 	if _, err := db.Exec(`PRAGMA writable_schema = ON`); err != nil {
@@ -1778,6 +1782,12 @@ func reconcileHarnessConstraint(db *sql.DB) error {
 		repairs = append(repairs,
 			replacement{sessionsHarnessCheckWithMuseKimchiPrimeAgent, sessionsHarnessCheckWithMuseKimchiPrimeAgentOMP},
 			replacement{sessionsHarnessCheckWithMuseQMKimchiPrimeAgent, sessionsHarnessCheckWithMuseQMKimchiPrimeAgentOMP},
+		)
+	}
+	if needsQoder {
+		repairs = append(repairs,
+			replacement{sessionsHarnessCheckWithMuseKimchiPrimeAgentOMP, sessionsHarnessCheckWithMuseKimchiPrimeAgentOMPQoder},
+			replacement{sessionsHarnessCheckWithMuseQMKimchiPrimeAgentOMP, sessionsHarnessCheckWithMuseQMKimchiPrimeAgentOMPQoder},
 		)
 	}
 	for _, r := range repairs {
