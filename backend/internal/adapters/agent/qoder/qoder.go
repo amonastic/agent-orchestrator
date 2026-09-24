@@ -457,6 +457,18 @@ func appendToolFlags(cmd *[]string, allowed, disallowed []string) {
 	}
 }
 
+// AugmentRuntimeEnv neutralizes Qoder desktop Agent-SDK session variables
+// before AO launches the CLI. When the daemon itself was started from inside a
+// Qoder desktop session, the inherited QODER_AGENT_SDK_ENTRYPOINT forces the
+// CLI into the private SDK stream-json mode, where it rejects ordinary flags
+// such as --acp. The CLI treats an empty value as unset. Applied to both TUI
+// (session manager) and Chat (nativeacp) launches; see the
+// runtimeEnvAugmenter contract.
+func (p *Plugin) AugmentRuntimeEnv(env map[string]string, _ string) {
+	env["QODER_AGENT_SDK_ENTRYPOINT"] = ""
+	env["QODER_SDK_AUTH_PAYLOAD_FILE"] = ""
+}
+
 // AppendSessionFlags adds the TUI-equivalent permission and model flags so
 // Chat launches the same Qoder process the terminal adapter would, plus ACP.
 func AppendSessionFlags(cmd *[]string, permissions ports.PermissionMode, model string) {

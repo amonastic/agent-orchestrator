@@ -604,6 +604,27 @@ func TestNativeConversationExistsProbesCNConfigRoot(t *testing.T) {
 	}
 }
 
+func TestAugmentRuntimeEnvClearsSDKSessionVars(t *testing.T) {
+	p := &Plugin{}
+	env := map[string]string{
+		"QODER_AGENT_SDK_ENTRYPOINT":  "chat-panel",
+		"QODER_SDK_AUTH_PAYLOAD_FILE": "/tmp/payload.json",
+		"PATH":                        "/usr/bin",
+	}
+
+	p.AugmentRuntimeEnv(env, t.TempDir())
+
+	if env["QODER_AGENT_SDK_ENTRYPOINT"] != "" {
+		t.Fatalf("SDK entrypoint = %q, want empty", env["QODER_AGENT_SDK_ENTRYPOINT"])
+	}
+	if env["QODER_SDK_AUTH_PAYLOAD_FILE"] != "" {
+		t.Fatalf("SDK auth payload = %q, want empty", env["QODER_SDK_AUTH_PAYLOAD_FILE"])
+	}
+	if env["PATH"] != "/usr/bin" {
+		t.Fatalf("unrelated env clobbered: PATH = %q", env["PATH"])
+	}
+}
+
 func TestInvalidateBinaryResolutionClearsCachedPath(t *testing.T) {
 	p := &Plugin{resolvedBinary: "old-qodercli"}
 
