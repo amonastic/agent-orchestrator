@@ -577,6 +577,33 @@ func TestNativeConversationExistsRequiresPersistedTranscript(t *testing.T) {
 	}
 }
 
+func TestNativeConversationExistsProbesCNConfigRoot(t *testing.T) {
+	p := &Plugin{}
+	id := "f194dbbc-f28a-4449-b885-09dcec9b5b7f"
+	home := t.TempDir()
+	t.Setenv("HOME", home)
+	t.Setenv("QODER_CONFIG_DIR", "")
+
+	// No transcript anywhere yet.
+	exists, err := p.NativeConversationExists(context.Background(), ports.SessionRef{}, id, nil)
+	if err != nil || exists {
+		t.Fatalf("before write: exists=%v err=%v", exists, err)
+	}
+
+	// The CN build's default root (~/.qoder-cn) is found without env config.
+	projectDir := filepath.Join(home, ".qoder-cn", "projects", "-test-proj")
+	if err := os.MkdirAll(projectDir, 0o755); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(projectDir, id+".jsonl"), []byte("{\"sessionId\":1}\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	exists, err = p.NativeConversationExists(context.Background(), ports.SessionRef{}, id, nil)
+	if err != nil || !exists {
+		t.Fatalf("CN root transcript: exists=%v err=%v", exists, err)
+	}
+}
+
 func TestInvalidateBinaryResolutionClearsCachedPath(t *testing.T) {
 	p := &Plugin{resolvedBinary: "old-qodercli"}
 

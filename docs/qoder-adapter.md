@@ -38,29 +38,37 @@ AO core (session_manager / daemon)
 
 ## 4. Installation
 
-AO never downloads or packages the provider CLI. Install Qoder CLI yourself
-(official curl-bash installer or the Qoder desktop app's CLI entry). The
-adapter resolves the binary in this order:
+AO never downloads or packages the provider CLI. Qoder CLI ships two builds
+with identical flag surfaces:
 
-1. `qodercli` on PATH
-2. `/usr/local/bin/qodercli`, `/opt/homebrew/bin/qodercli`
-3. `~/.local/bin/qodercli` (official installer symlink)
-4. `~/.qoder/bin/qodercli/qodercli`
+| Build | Binary | Config root | Login methods | Install |
+|-------|--------|-------------|---------------|---------|
+| China (CN) | `qoderclicn` | `~/.qoder-cn` | phone, Aliyun, GitHub | `curl -fsSL https://qoder.cn/install \| bash` |
+| International | `qodercli` | `~/.qoder` | GitHub, Google | official installer / desktop CLI entry |
+
+The adapter prefers the CN build when both are installed, and resolves the
+binary in this order:
+
+1. `qoderclicn` then `qodercli` on PATH
+2. `/usr/local/bin/`, `/opt/homebrew/bin/` (both names)
+3. `~/.local/bin/qoderclicn`, `~/.qoder-cn/bin/qoderclicn/qoderclicn`
+4. `~/.local/bin/qodercli`, `~/.qoder/bin/qodercli/qodercli`
 
 ## 5. Authentication
 
-- Login: `qodercli login` (interactive, opens a browser). This is a human
-  authorization step; AO cannot perform it.
-- Readiness probe: `qodercli status -o json` → `{"logged_in": bool}`. The
+- Login: `qoderclicn login` (CN build; phone/Aliyun/GitHub) or
+  `qodercli login` (international; GitHub/Google). Interactive, opens a
+  browser. This is a human authorization step; AO cannot perform it.
+- Readiness probe: `<binary> status -o json` → `{"logged_in": bool}`. The
   adapter parses this bounded probe; an unparseable result is `unknown`, never
   a guess.
 - Host-provided credential: when `QODER_SDK_AUTH_PAYLOAD_FILE` points at an
   existing non-empty file (desktop-app-hosted runs), the adapter treats that
   as authorized without spawning the probe.
 - The standalone CLI does **not** share credentials with the Qoder desktop app
-  config root (`~/.qoder-cn` on the CN desktop build). Verified: `status`
-  reports `logged_in: false` on a machine with a logged-in desktop app, and
-  `--config-dir ~/.qoder-cn` does not change that.
+  (verified for both builds: `status` reports `logged_in: false` on a machine
+  with a logged-in desktop app; the desktop keeps its tokens elsewhere, e.g.
+  the macOS keychain). A separate one-time `login` is required.
 
 ## 6. ACP (Chat mode)
 
@@ -152,11 +160,11 @@ different AO harness wired to the DeepSeek API directly — no hack required.
 ## 12. Debugging
 
 - Readiness/auth: `ao agent list` (shows `installed` / `needs auth`).
-- Direct auth probe: `qodercli status -o json`.
+- Direct auth probe: `qoderclicn status -o json` (CN) or `qodercli status -o json`.
 - ACP handshake by hand:
   ```bash
   printf '%s\n' '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":1,"clientCapabilities":{"fs":{"readTextFile":true,"writeTextFile":true}}}}' \
-    | qodercli --acp
+    | qoderclicn --acp
   ```
 - Chat driver probe: `AO_PROBE_QODER_ACP=1 go test ./internal/adapters/chatdriver/qoderacp/ -run TestLiveQoderACPHandshake -v`
 - Daemon logs: `~/.ao/logs/` (or `$AO_DATA_DIR/logs`).

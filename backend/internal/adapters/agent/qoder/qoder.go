@@ -2,18 +2,22 @@
 // sessions, resuming hook-tracked sessions, installing workspace-local native
 // hooks, and reading hook-derived session info.
 //
-// Qoder CLI (qodercli) is a Claude-Code-shaped coding agent CLI: `-p/--print`
-// for the headless one-shot prompt, `-i/--prompt-interactive <text>` to run a
-// prompt and stay interactive, `--permission-mode
-// {default,accept_edits,bypass_permissions,dont_ask,auto}` for permissions,
-// `--session-id <uuid>` to pin the native session identity, `-r/--resume <id>`
-// to continue a specific session, and `--acp` to serve the Agent Client
-// Protocol over stdio (used by the qoderacp Chat driver). It also has a
-// Claude-Code-shaped hook system configured in `.qoder/settings.json` or
-// `.qoder/settings.local.json` (top-level "hooks" key, event arrays of matcher
-// groups with command hooks), and emits a `session_id` in hook payloads — so
-// AO captures native session identity and activity from those hooks rather
-// than from transcript scans.
+// Qoder CLI ships two builds with identical flag surfaces: the China build
+// `qoderclicn` (config root ~/.qoder-cn, phone/Aliyun/GitHub login, installed
+// via `curl -fsSL https://qoder.cn/install | bash`) and the international
+// build `qodercli` (config root ~/.qoder, GitHub/Google login). The adapter
+// prefers the CN build when both are installed. Both are Claude-Code-shaped
+// coding agent CLIs: `-p/--print` for the headless one-shot prompt,
+// `-i/--prompt-interactive <text>` to run a prompt and stay interactive,
+// `--permission-mode {default,accept_edits,bypass_permissions,dont_ask,auto}`
+// for permissions, `--session-id <uuid>` to pin the native session identity,
+// `-r/--resume <id>` to continue a specific session, and `--acp` to serve the
+// Agent Client Protocol over stdio (used by the qoderacp Chat driver). They
+// also have a Claude-Code-shaped hook system configured in
+// `.qoder/settings.json` or `.qoder/settings.local.json` (top-level "hooks"
+// key, event arrays of matcher groups with command hooks), and emit a
+// `session_id` in hook payloads — so AO captures native session identity and
+// activity from those hooks rather than from transcript scans.
 package qoder
 
 import (
@@ -234,8 +238,10 @@ func (p *Plugin) NativeConversationID(
 
 // NativeConversationExists reports whether a Qoder session UUID has a
 // non-empty transcript. Qoder CLI stores transcripts under
-// $QODER_CONFIG_DIR/projects/<project-key>/<session-id>.jsonl (default config
-// root ~/.qoder). AO only tests for existence — it never parses the file.
+// <configRoot>/projects/<project-key>/<session-id>.jsonl, where the config
+// root is $QODER_CONFIG_DIR, ~/.qoder-cn for the China build, or ~/.qoder for
+// the international build. AO only tests for existence — it never parses the
+// file.
 func (p *Plugin) NativeConversationExists(
 	ctx context.Context,
 	_ ports.SessionRef,
@@ -249,18 +255,53 @@ func (p *Plugin) NativeConversationExists(
 	if _, err := uuid.Parse(id); err != nil {
 		return false, nil
 	}
-	configDir := strings.TrimSpace(env["QODER_CONFIG_DIR"])
-	if configDir == "" {
-		configDir = strings.TrimSpace(os.Getenv("QODER_CONFIG_DIR"))
+	roots, err := qoderConfigRoots(env)
+	if err != nil {
+		return false, err
 	}
-	if configDir == "" {
-		home, err := os.UserHomeDir()
-		if err != nil {
-			return false, fmt.Errorf("qoder: resolve transcript root: %w", err)
+	for _, root := range roots {
+		exists, err := transcriptExists(ctx, root, id)
+		if err != nil || exists {
+			return exists, err
 		}
-		configDir = filepath.Join(home, ".qoder")
 	}
-	projectsDir := filepath.Join(configDir, "projects")
+	return false, nil
+}
+
+// qoderConfigRoots returns the config roots to probe, in priority order: an
+// explicit QODER_CONFIG_DIR (session env, then process env), then both
+// well-known per-build roots.
+func qoderConfigRoots(env map[string]string) ([]string, error) {
+	var roots []string
+	if dir := strings.TrimSpace(env["QODER_CONFIG_DIR"]); dir != "" {
+		roots = append(roots, dir)
+	}
+	if dir := strings.TrimSpace(os.Getenv("QODER_CONFIG_DIR")); dir != "" && !containsString(roots, dir) {
+		roots = append(roots, dir)
+	}
+	home, err := os.UserHomeDir()
+	if err != nil {
+		return nil, fmt.Errorf("qoder: resolve config roots: %w", err)
+	}
+	for _, dir := range []string{filepath.Join(home, ".qoder-cn"), filepath.Join(home, ".qoder")} {
+		if !containsString(roots, dir) {
+			roots = append(roots, dir)
+		}
+	}
+	return roots, nil
+}
+
+func containsString(values []string, needle string) bool {
+	for _, value := range values {
+		if value == needle {
+			return true
+		}
+	}
+	return false
+}
+
+func transcriptExists(ctx context.Context, configRoot, id string) (bool, error) {
+	projectsDir := filepath.Join(configRoot, "projects")
 	projects, err := os.ReadDir(projectsDir)
 	if os.IsNotExist(err) {
 		return false, nil
@@ -325,14 +366,22 @@ func (p *Plugin) SessionInfo(ctx context.Context, session ports.SessionRef) (por
 	return info, ok, nil
 }
 
-// qoderBinarySpec locates the qodercli binary: PATH first, then the official
-// installer's locations (~/.local/bin symlink and the ~/.qoder/bin store).
+// qoderBinarySpec locates the Qoder CLI binary: PATH first, then the official
+// installer's locations (~/.local/bin symlinks and the versioned stores). The
+// China build (qoderclicn, config root ~/.qoder-cn, phone/Aliyun login) is
+// preferred over the international build (qodercli, config root ~/.qoder,
+// GitHub/Google login); whichever the user installed is the one AO drives.
 var qoderBinarySpec = binaryutil.BinarySpec{
-	Label:     "qoder",
-	Names:     []string{"qodercli"},
-	WinNames:  []string{"qodercli.exe", "qodercli.cmd", "qodercli"},
-	UnixPaths: []string{"/usr/local/bin/qodercli", "/opt/homebrew/bin/qodercli"},
+	Label:    "qoder",
+	Names:    []string{"qoderclicn", "qodercli"},
+	WinNames: []string{"qoderclicn.exe", "qoderclicn.cmd", "qoderclicn", "qodercli.exe", "qodercli.cmd", "qodercli"},
+	UnixPaths: []string{
+		"/usr/local/bin/qoderclicn", "/opt/homebrew/bin/qoderclicn",
+		"/usr/local/bin/qodercli", "/opt/homebrew/bin/qodercli",
+	},
 	UnixHomePaths: [][]string{
+		{".local", "bin", "qoderclicn"},
+		{".qoder-cn", "bin", "qoderclicn", "qoderclicn"},
 		{".local", "bin", "qodercli"},
 		{".qoder", "bin", "qodercli", "qodercli"},
 	},
