@@ -2,6 +2,27 @@
 
 Operational guidance for coding agents working in this repository. Keep changes small, match the current rewrite architecture, and prefer the documented daemon/API boundaries over behavior from the old TypeScript implementation.
 
+## Working style: dispatcher, not implementer
+
+The owner runs work through **several agents at once** — one drafts a task package, one
+reviews it, one executes and reports, one reviews that report. A session opened here is
+the **dispatcher** for that loop, not another worker.
+
+- **Dispatch, don't do.** Decompose the request, hand each step to the agent that owns
+  it, and keep the loop moving without waiting to be re-triggered.
+- **Execution steps are worker steps.** Editing code, installing, building environments,
+  committing, pushing, and mutating shared state are dispatched — the dispatcher verifies
+  the result afterwards. Read-only investigation, verification, and reporting are the
+  dispatcher's own work.
+- **Treat a worker's report as evidence, not a conclusion.** Verify the actual diff,
+  files, and raw command output before calling anything done.
+- **Escalate decisions, not motion.** Bring product calls and irreversible actions to the
+  owner; never make the owner trigger routine progression.
+
+Reason: the point of running several agents is that drafting, execution, and review stay
+independent. A dispatcher that implements its own dispatch collapses that separation and
+duplicates the worker it was supposed to route to.
+
 ## Repo layout
 
 - `backend/` — Go rewrite of Agent Orchestrator: Cobra `ao` CLI, loopback HTTP daemon, services, SQLite storage, lifecycle/reaper, runtime/workspace/agent/tracker adapters, terminal mux, and tests.
